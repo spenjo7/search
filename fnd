@@ -1,0 +1,104 @@
+#!/bin/bash
+FILE=~/.found
+TMP=~/.found_tmp
+
+help(){
+	echo "  [ -a ][ * ] Add a line -- <Requires a Second Input>"
+	echo "  [ -b ] Opens the [found FILE] in Brackets for editing."
+	echo "  [ -c ] Clears the file" 
+	echo "  [ -es ] Open the [fnd source file] in Brackets for editing"
+	echo "  [ -f ] Output file Location"
+	echo "  [ -h ] Get help"
+	echo "  [ -l ] Get number of lines in file"
+	echo "  [ -m ][ * ] Narrows the [found FILE] with a case insensitive grep -- <Requires a Second Input>"
+	echo "  [ -v ][ * ] Remove lines matching pattern -- <Requires a Second Input> <cases sensetive>"
+}
+
+getLength(){
+    LEN=$(wc -l $FILE | sed 's/[^0-9]//g' )
+    echo $LEN
+}
+
+show(){
+    while read -r line; do echo '"'$line'"'; done < $FILE
+}
+
+if [ -z $1 ]                # List Contents
+then
+
+    show
+
+elif [ $1 == "-a" ]         # Add a line
+then
+
+    if [ -z $2 ]
+    then
+        echo "Cannot add blank values, use [ -c ] flag instead "
+    
+    else 
+        echo $2 >> $FILE
+        show
+    fi
+
+elif [ $1 == "-b" ]         # Open the FOUND file in Brackets
+then
+
+	$( nano $FILE )
+
+elif [ $1 == "-c" ]         # Clear contents
+then
+    > $FILE
+    echo "{emptied}"
+	
+elif [ $1 == "-es" ]         # Open the [ fnd FILE ] in Brackets
+then
+
+	$( which fnd | nano brackets )
+	
+elif [ $1 == "-f" ]         # echo file location
+then
+
+	echo $FILE
+
+elif [ $1 == "-h" ]         # Get HELP
+then
+
+    help
+
+elif [ $1 == "-l" ]         # Get HELP
+then
+    
+		echo "[ " $(getLength) " ]"
+
+elif [ $1 == "-m" ]         # Narrow findings with another grep
+then
+
+	if [ -z $2 ]
+	then
+		echo "Cannot match blank values"
+
+	else 
+		grep -i $2 $FILE > $TMP
+		cat $TMP > $FILE
+		rm $TMP
+		show
+	fi
+
+elif [ $1 == "-v" ]         # Remove matches
+then
+
+	if [ -z $2 ]
+	then
+		echo "Cannot exclude blank values"
+
+	else 
+		grep -v $2 $FILE > $TMP
+		cat $TMP > $FILE
+		rm $TMP
+		show
+	fi
+
+else 
+    echo "Error: Invalid input  [ " $1 " ]"
+    help
+fi

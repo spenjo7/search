@@ -1,0 +1,75 @@
+#!/bin/bash
+DIR=`pwd -P`/
+STORE_FILE=~/.search_tmp
+FOUND=~/.found
+
+## Variables ##
+EXTN='txt'
+SEARCH_TERM=
+depth=3
+EXCLUDE=("/node_modules/" "/REACT/" "/.git/" "/package-lock.json" "react-single-file-local.js")
+
+##	Functions ##
+help(){
+	echo "  [ -h ] Get help"
+	echo "  [ -d ][n] Change maxdepth from default of 3"
+	echo "  [ -e ][ext] Change file extention to be searched for"
+	echo "  [ -v ][txt] Add to the exclusion list. Does not support spaces but can be used multiple times"
+	echo "  [ text ] Search the files for that text string; working on trying to support spaces, but no luck so far"
+}
+
+getLength(){
+    LEN=$(wc -l $0 | sed 's/[^0-9]//g' )
+    echo $LEN
+}
+
+find_files_and_sort(){
+	SEARCH_TERM="$@"
+	if [ -z $EXTN ]
+	then
+		find ./ -maxdepth $depth -type f | sort > $STORE_FILE
+	else
+		find ./ -maxdepth $depth -type f -name "*\.${EXTN}*" | sort > $STORE_FILE
+	fi
+}
+
+filter_and_transfer(){	# Use SED to clean output; then delete temp file 
+	for e in ${EXCLUDE[@]};
+	do
+		grep -v $e $STORE_FILE > $STORE_FILE.tmp
+		cat $STORE_FILE.tmp > $STORE_FILE
+		rm $STORE_FILE.tmp
+	done
+
+	sed "s/^\.\/*/${DIR//\//\\/}/g" $STORE_FILE > $FOUND
+	rm -f $STORE_FILE
+}
+
+init(){
+	find_files_and_sort
+	filter_and_transfer
+}
+
+## GET FLAGS ##
+while getopts 'ahd:e:v:' OPTION; do
+  case "$OPTION" in
+  	a) EXTN='';;
+    h)
+      help
+			exit 1
+      ;;
+    d) depth=$OPTARG;;
+    e) EXTN="$OPTARG";;
+    v) EXCLUDE+=("$OPTARG");;		#doesn't support spaces but -v can be done multiple times
+    ?)
+	 	## error auto thrown, show help info and then exit
+	 	help
+		exit 1
+      ;;
+  esac
+done
+shift "$(($OPTIND -1))"
+
+init
+cat $FOUND
+exit 1

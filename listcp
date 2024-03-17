@@ -1,0 +1,18 @@
+#!/bin/bash
+DEST='~/tmp/bulk_move'
+
+echo "Clearing out [" $DEST "] for use." 
+touch $DEST/tmp.txt
+rm -rf $DEST/*
+
+i=0
+
+for file in $(cat ~/.found) 
+do 
+    B_NAME=$(basename "$file" );
+    cp "$file" $DEST
+    i=$((i+1))
+    echo $B_NAME
+done
+
+echo "Moved " $i " File(s)" to $DEST
