@@ -5,17 +5,14 @@ FOUND=~/.found
 
 ## Variables ##
 EXTN='txt'
-SEARCH_TERM=
-depth=3
-EXCLUDE=("/node_modules/" "/REACT/" "/.git/" "/package-lock.json" "react-single-file-local.js")
+SEARCH_TERM=''
 
 ##	Functions ##
 help(){
 	echo "  [ -h ] Get help"
-	echo "  [ -d ][n] Change maxdepth from default of 3"
+	echo "  [ -a ] Search for any file type instead of the default .txt* extention"
 	echo "  [ -e ][ext] Change file extention to be searched for"
-	echo "  [ -v ][txt] Add to the exclusion list. Does not support spaces but can be used multiple times"
-	echo "  [ text ] Search the files for that text string; working on trying to support spaces, but no luck so far"
+	echo "  [ <text> ] Search the files for that text string; does not support spaces"
 }
 
 getLength(){
@@ -24,23 +21,15 @@ getLength(){
 }
 
 find_files_and_sort(){
-	SEARCH_TERM="$@"
-	if [ -z $EXTN ]
+	if [ -z "$SEARCH_TERM" ]		# Search for files without greping #
 	then
-		find ./ -maxdepth $depth -type f | sort > $STORE_FILE
-	else
-		find ./ -maxdepth $depth -type f -name "*\.${EXTN}*" | sort > $STORE_FILE
+		find ./ -type f -name "*\.${EXTN}*" | sort > $STORE_FILE
+	else 
+		find ./ -type f -name "*\.${EXTN}*" -print0 | xargs -0 grep -il "$SEARCH_TERM" | sort > $STORE_FILE
 	fi
 }
 
 filter_and_transfer(){	# Use SED to clean output; then delete temp file 
-	for e in ${EXCLUDE[@]};
-	do
-		grep -v $e $STORE_FILE > $STORE_FILE.tmp
-		cat $STORE_FILE.tmp > $STORE_FILE
-		rm $STORE_FILE.tmp
-	done
-
 	sed "s/^\.\/*/${DIR//\//\\/}/g" $STORE_FILE > $FOUND
 	rm -f $STORE_FILE
 }
@@ -51,25 +40,50 @@ init(){
 }
 
 ## GET FLAGS ##
-while getopts 'ahd:e:v:' OPTION; do
+while getopts 'ahe:' OPTION; do
   case "$OPTION" in
-  	a) EXTN='';;
     h)
       help
-			exit 1
+		exit 1
       ;;
-    d) depth=$OPTARG;;
-    e) EXTN="$OPTARG";;
-    v) EXCLUDE+=("$OPTARG");;		#doesn't support spaces but -v can be done multiple times
+		a)
+      EXTN=""
+			;;
+    e)
+      EXTN="$OPTARG"
+      ;;
     ?)
-	 	## error auto thrown, show help info and then exit
-	 	help
+	 	## error auto thrown, just exit
 		exit 1
       ;;
   esac
 done
 shift "$(($OPTIND -1))"
 
-init
+## SAFETY CHECK ## 
+if [ $DIR == ~/ ]		 # Not sure how to do this dynamically
+then
+	## echo "ABORTING: Do not run this from your ~ directory, it will throw a bunch of permissions errors and break"
+	## exit 1
+	echo "Warning: Do not run this from your ~ directory, it will throw a bunch of permissions errors and break."
+	echo  "Press any key to Cancel"
+	read prompt
+	exit 1
+fi
+
+##  Handle Command Line Parameters ## 
+
+if [ -z "$1" ]			# No parameters; search for files without greping #
+then 
+
+	init
+	
+else						# xargs grep the results before pushing to store file
+		## Might actually support spaces now? ##
+	SEARCH_TERM="$1"
+	init 
+fi
+
+
 cat $FOUND
 exit 1

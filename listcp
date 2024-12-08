@@ -1,18 +1,34 @@
-#!/bin/bash
-DEST='~/tmp/bulk_move'
+which c#!/bin/bash
+DEST=~/LOGS/Input
 
-echo "Clearing out [" $DEST "] for use." 
-touch $DEST/tmp.txt
-rm -rf $DEST/*
 
-i=0
+empty_target(){
+	echo "Clearing out [" $DEST "] for use." 
+	touch $DEST/tmp.txt
+	rm -r $DEST/*
+}
 
-for file in $(cat ~/.found) 
-do 
-    B_NAME=$(basename "$file" );
-    cp "$file" $DEST
-    i=$((i+1))
-    echo $B_NAME
-done
 
-echo "Moved " $i " File(s)" to $DEST
+copy_listed(){
+	i=0
+
+	for file in $(cat ~/.found) 
+	do 
+			B_NAME=$(basename "$file" );
+			echo $B_NAME
+			cp "$file" $DEST
+			i=$((i+1))
+	done
+
+	echo "Moved " $i " File(s)" to $DEST
+}
+
+
+if [ -z $1 ]                    ## no input
+then
+	empty_target
+else
+	DEST=$1
+fi
+
+copy_listed

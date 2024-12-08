@@ -1,17 +1,51 @@
 #!/bin/bash
+line_dec="----------------------------------------------------------------------------------------------"
 FILE=~/.found
-TMP=~/.found_tmp
+TEMPFILE=$FILE.tmp
 
 help(){
-	echo "  [ -a ][ * ] Add a line -- <Requires a Second Input>"
-	echo "  [ -b ] Opens the [found FILE] in Brackets for editing."
-	echo "  [ -c ] Clears the file" 
-	echo "  [ -es ] Open the [fnd source file] in Brackets for editing"
-	echo "  [ -f ] Output file Location"
-	echo "  [ -h ] Get help"
-	echo "  [ -l ] Get number of lines in file"
-	echo "  [ -m ][ * ] Narrows the [found FILE] with a case insensitive grep -- <Requires a Second Input>"
-	echo "  [ -v ][ * ] Remove lines matching pattern -- <Requires a Second Input> <cases sensetive>"
+	echo $line_dec
+	echo -e '\033[0;31m'$FILE'\033[0m'			## filename in red
+	echo "  [ -a  ][ * ]		Add a line"
+	echo "  [ -b  ]		Opens the [found FILE] in Brackets for editing."
+	echo "  [ -c  ]		Clears the file" 
+	echo "  [ -es ]		Open the [fnd source file] in Brackets for editing"
+	echo "  [ -file  ]		Output file Location ** changed **"
+	echo "  [ -fix ]		Replace spaces and parentheses in file names"
+	echo "  [ -from ][ * ]	Load another file into" $FILE
+	echo "  [ -h  ]		Get help"
+	echo "  [ -last ]		Get last match from list"
+	echo "  [ -len ]		Get number of lines in file ** changed **"
+	echo "  [ -n  ][ * ]		Reduce file list to names which match the input"
+	echo "  [ -oa ]		Open all found files in Brackets"
+	echo "  [ -ol ]		Open last found file in Brackets"
+	echo "  [ -rl ]		Remove Last Match"
+	echo "  [ -v  ][ * ]		Remove files, matching the input, from list"
+	echo $line_dec
+}
+
+bark(){
+	echo ""
+	echo $line_dec
+	echo "$1"
+	echo $line_dec
+	echo ""
+}
+
+prompt(){
+	read -p "Are you sure? " -n 1 -r
+	echo    # (optional) move to a new line
+	if [[ ! $REPLY =~ ^[Yy]$ ]]
+	then
+			echo "Canceled"
+			[[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1 # handle exits from shell or function but don't exit interactive shell
+	fi
+}
+
+
+
+getLast(){
+	tail -1 $FILE
 }
 
 getLength(){
@@ -20,8 +54,32 @@ getLength(){
 }
 
 show(){
-    while read -r line; do echo '"'$line'"'; done < $FILE
+    cat $FILE
 }
+
+untemp(){
+	#empty temp file back into original file and delete the temp file #
+	cat $TEMPFILE > $FILE
+	rm $TEMPFILE
+}
+
+fix(){
+	OIFS=$IFS
+	COUNT=0           
+
+	IFS=$'\n'
+	for line in $( fnd | grep " ")
+	do f=$( echo "$line" | sed 's/\ /_/g' | sed 's/[()]//g' )
+		echo $f
+		mv $line $f
+		COUNT=$((COUNT+1))
+	done
+	
+	bark $( echo "Found and attempted to fix" $COUNT "linesclear. Will need to re-run the search functionality to update the refrence list!" )
+}
+
+
+	# MAIN FUNCTION #
 
 if [ -z $1 ]                # List Contents
 then
@@ -43,7 +101,7 @@ then
 elif [ $1 == "-b" ]         # Open the FOUND file in Brackets
 then
 
-	$( nano $FILE )
+	$( brackets $FILE )
 
 elif [ $1 == "-c" ]         # Clear contents
 then
@@ -52,53 +110,109 @@ then
 	
 elif [ $1 == "-es" ]         # Open the [ fnd FILE ] in Brackets
 then
-
-	$( which fnd | nano brackets )
+	bark "Edit fnd Script"
+	$( which fnd | xargs brackets )
 	
-elif [ $1 == "-f" ]         # echo file location
+elif [ $1 == "-file" ]         # echo file location
 then
 
 	echo $FILE
+
+elif [ $1 == "-fix" ]         # fix the spaces and parentheses in found file names
+then
+
+	fix		# has it's own notification message
+
+elif [ $1 == "-from" ]         # Replace file list with temp file list
+then
+
+    if [ -z $2 ]
+    then
+        echo "Second input required."
+    else 
+				cat $2 > $FILE
+        show
+    fi
 
 elif [ $1 == "-h" ]         # Get HELP
 then
 
     help
 
-elif [ $1 == "-l" ]         # Get HELP
+
+elif [ $1 == "-last" ]         # Get Last Match from List
+then
+
+    getLast
+
+elif [ $1 == "-len" ]         # Get Length of List
 then
     
 		echo "[ " $(getLength) " ]"
 
-elif [ $1 == "-m" ]         # Narrow findings with another grep
+	
+elif [ $1 == "-n" ]         # Reduce to matching file names
 then
 
-	if [ -z $2 ]
-	then
-		echo "Cannot match blank values"
+    if [ -z $2 ]
+    then
+        echo "Cannot match blank values; second input required."
+    
+    else 
+        grep $2 $FILE > $TEMPFILE
+				untemp
+        show
+    fi
 
-	else 
-		grep -i $2 $FILE > $TMP
-		cat $TMP > $FILE
-		rm $TMP
-		show
-	fi
 
-elif [ $1 == "-v" ]         # Remove matches
+elif [ $1 == "-oa" ]         # Open All in Brackets
 then
 
-	if [ -z $2 ]
+		# Saftey Check #
+	LEN=$(getLength)
+	if [ $(getLength) -gt 5 ]
 	then
-		echo "Cannot exclude blank values"
-
-	else 
-		grep -v $2 $FILE > $TMP
-		cat $TMP > $FILE
-		rm $TMP
-		show
+		bark "WARNING: There are $LEN matches!"
+		prompt	# exists if does not receive y/Y
 	fi
+	
+	echo 'Opening [ ' $(getLength) ' ] Files in Brackets: '
+	for f in $(cat $FILE)
+	do 
+		echo '-| ' $f
+		brackets $f
+	done 
+  
+elif [ $1 == "-ol" ]         # Open All in Brackets
+then
+	
+	echo 'Opening Last matching File in Brackets: '
+	getLast $FILE | xargs brackets
+	
+elif [ $1 == "-rl" ]         # Remove last match
+then	
+
+	LAST=$(getLast)
+	fnd -v $LAST
+
+elif [ $1 == "-v" ]         # Remove unwanted match
+then
+
+    if [ -z $2 ]
+    then
+        bark "	INFO: No input provided for the -v flag; removing entries with spaces in the names instead."
+				grep -v " " $FILE > $TEMPFILE
+				untemp
+        ## show
+	else 
+        grep -v $2 $FILE > $TEMPFILE
+				untemp
+        show
+    fi
 
 else 
+
     echo "Error: Invalid input  [ " $1 " ]"
     help
+    
 fi

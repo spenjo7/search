@@ -1,0 +1,89 @@
+#!/bin/bash
+###     SETUP       ###
+
+## Compare Split Strings: ##
+compare_split_strings(){
+
+	 # Convert Strings to Arrays - and get rid of blanks: #
+	 ARR_1=$( echo $1 |	tr "/" ' ' )
+	 COMB=""
+
+	 # Loop through Arrays with Indexes: # 
+	 
+	 for i in ${ARR_1[@]}
+	 do
+	 	if [[ $2 != *"$i"* ]]
+		then
+			COMB+=$i'/'
+		fi
+	 done
+	 echo $COMB
+}
+
+
+## Set Variables: ##
+FOUND=~/.found                  ## Source is the 'found' file
+TMP_FOLDER=~/tmp                ## Specific Folder for this purpose 
+LEN=$(wc -l $FOUND | sed 's/[^0-9]//g' )
+MULTI_LINE=$(( $LEN < 1? 0 : $LEN > 1? 2 : 1  ))    # prep
+
+
+###     EXECUTION       ###
+
+if [ $MULTI_LINE == 0 ]
+then
+	 echo "The  [ " $FOUND " ] file is blank; nothing to copy."
+	 exit 1
+fi
+
+rm -drf $TMP_FOLDER         ## Clear 'bulk' folder
+mkdir $TMP_FOLDER           ## Create 'bulk' folder
+
+
+### Why don't we compare each file name before messing around with directories ?? ###
+
+cross_check(){
+	 ## Need one sibling to get a comparison against ##
+	 SIBLING=$( grep "$B_NAME" $FOUND | grep -v -m 1 "$D_NAME" | sed "s/$B_NAME//" )
+
+			if [[ -n "$SIBLING" ]]        ## Has no sibling
+			then
+				SUB_FOLDERS=$(compare_split_strings "$D_NAME"	"$SIBLING" )
+			 	echo $SUB_FOLDERS
+	 			q=0
+			else
+				q=0
+			 	echo ''
+			fi	 
+}
+
+COUNT=0
+
+loop_through(){    ##	LOOP THROUGH FILES NAMES ##
+	 BASE=""
+
+	 for FILE in $(cat $FOUND)
+	 do
+
+	 ## b_name misses multipart extentions
+	 B_NAME=$( echo $FILE | sed 's/^.*\///' )
+	 D_NAME=$( echo $FILE | sed "s/$B_NAME//" )
+	 
+			if [ $MULTI_LINE == 1 ]
+			then
+				SUB=''
+			else 
+				 COMB_NAME=$( cross_check $B_NAME $D_NAME )
+				 SUB=$(echo $COMB_NAME)
+			fi
+	
+			DEST=$TMP_FOLDER/$SUB
+			mkdir -p $DEST
+			cp $FILE $DEST
+			echo $DEST$B_NAME
+			COUNT=$((COUNT+1))
+	 done
+	 echo " [ " $COUNT " ] file(s) copied!"
+}
+
+loop_through
